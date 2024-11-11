@@ -1,14 +1,18 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
-
 import { useEffect, useRef, useCallback, useState } from "react";
+
 import { RealtimeClient } from "@openai/realtime-api-beta";
 import { ItemType } from "@openai/realtime-api-beta/dist/lib/client.js";
 import { WavRecorder, WavStreamPlayer } from "../lib/wavtools/index.js";
 import { instructions } from "../utils/conversation_config.js";
 import { WavRenderer } from "../utils/wav_renderer";
-import { X, Zap } from "react-feather";
 
+import { X, Zap, Edit } from "react-feather";
+import { Button } from "../components/button/Button";
+import "./ConsolePage.scss";
+
+/**
+ * Type for all event logs
+ */
 interface RealtimeEvent {
   time: string;
   source: "client" | "server";
@@ -16,7 +20,24 @@ interface RealtimeEvent {
   event: { [key: string]: any };
 }
 
-export default function ConsolePage() {
+export function ConsolePage() {
+  /**
+   * Ask user for API Key
+   */
+  const apiKey =
+    localStorage.getItem("tmp::voice_api_key") ||
+    prompt("OpenAI API Key") ||
+    "";
+  if (apiKey !== "") {
+    localStorage.setItem("tmp::voice_api_key", apiKey);
+  }
+
+  /**
+   * Instantiate:
+   * - WavRecorder (speech input)
+   * - WavStreamPlayer (speech output)
+   * - RealtimeClient (API client)
+   */
   const wavRecorderRef = useRef<WavRecorder>(
     new WavRecorder({ sampleRate: 24000 })
   );
@@ -25,34 +46,64 @@ export default function ConsolePage() {
   );
   const clientRef = useRef<RealtimeClient>(
     new RealtimeClient({
-      url:
-        process.env.REACT_APP_LOCAL_RELAY_SERVER_URL || "http://localhost:8081",
+      apiKey: apiKey,
+      dangerouslyAllowAPIKeyInBrowser: true,
     })
   );
 
+  /**
+   * References for
+   * - Rendering audio visualization (canvas)
+   * - Autoscrolling event logs
+   * - Timing delta for event log displays
+   */
   const clientCanvasRef = useRef<HTMLCanvasElement>(null);
   const serverCanvasRef = useRef<HTMLCanvasElement>(null);
   const eventsScrollHeightRef = useRef(0);
   const eventsScrollRef = useRef<HTMLDivElement>(null);
   const startTimeRef = useRef<string>(new Date().toISOString());
 
+  /**
+   * Variables for displaying application state
+   * - items are all conversation items (dialog)
+   * - realtimeEvents are event logs
+   */
   const [items, setItems] = useState<ItemType[]>([]);
   const [realtimeEvents, setRealtimeEvents] = useState<RealtimeEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [, setMemoryKv] = useState<{ [key: string]: any }>({});
 
+  /**
+   * When you click the API key
+   */
+  const resetAPIKey = useCallback(() => {
+    const apiKey = prompt("OpenAI API Key");
+    if (apiKey !== null) {
+      localStorage.setItem("tmp::voice_api_key", apiKey);
+      window.location.reload();
+    }
+  }, []);
+
+  /**
+   * Connect to conversation
+   */
   const connectConversation = useCallback(async () => {
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
 
+    // Set state variables
     startTimeRef.current = new Date().toISOString();
     setIsConnected(true);
     setRealtimeEvents([]);
     setItems(client.conversation.getItems());
 
+    // Connect to microphone
     await wavRecorder.begin();
+
+    // Connect to audio output
     await wavStreamPlayer.connect();
+
+    // Connect to realtime API
     await client.connect();
     client.sendUserMessageContent([
       {
@@ -61,18 +112,17 @@ export default function ConsolePage() {
       },
     ]);
 
-    client.updateSession({
-      turn_detection: { type: "server_vad" },
-    });
-
+    // Always use VAD mode
     await wavRecorder.record((data) => client.appendInputAudio(data.mono));
   }, []);
 
+  /**
+   * Disconnect and reset conversation state
+   */
   const disconnectConversation = useCallback(async () => {
     setIsConnected(false);
     setRealtimeEvents([]);
     setItems([]);
-    setMemoryKv({});
 
     const client = clientRef.current;
     client.disconnect();
@@ -84,10 +134,14 @@ export default function ConsolePage() {
     await wavStreamPlayer.interrupt();
   }, []);
 
+  /**
+   * Auto-scroll the event logs
+   */
   useEffect(() => {
     if (eventsScrollRef.current) {
       const eventsEl = eventsScrollRef.current;
       const scrollHeight = eventsEl.scrollHeight;
+      // Only scroll if height has just changed
       if (scrollHeight !== eventsScrollHeightRef.current) {
         eventsEl.scrollTop = scrollHeight;
         eventsScrollHeightRef.current = scrollHeight;
@@ -95,6 +149,9 @@ export default function ConsolePage() {
     }
   }, [realtimeEvents]);
 
+  /**
+   * Auto-scroll the conversation logs
+   */
   useEffect(() => {
     const conversationEls = [].slice.call(
       document.body.querySelectorAll("[data-conversation-content]")
@@ -105,6 +162,9 @@ export default function ConsolePage() {
     }
   }, [items]);
 
+  /**
+   * Set up render loops for the visualization canvas
+   */
   useEffect(() => {
     let isLoaded = true;
 
@@ -172,47 +232,26 @@ export default function ConsolePage() {
     };
   }, []);
 
+  /**
+   * Core RealtimeClient and audio capture setup
+   */
   useEffect(() => {
     const wavStreamPlayer = wavStreamPlayerRef.current;
     const client = clientRef.current;
 
+    // Set instructions with VAD mode
     client.updateSession({ instructions: instructions });
-    client.updateSession({ input_audio_transcription: { model: "whisper-1" } });
+    client.updateSession({
+      input_audio_transcription: { model: "whisper-1" },
+      turn_detection: { type: "server_vad" }, // Set VAD mode by default
+    });
 
-    client.addTool(
-      {
-        name: "set_memory",
-        description: "Saves important data about the user into memory.",
-        parameters: {
-          type: "object",
-          properties: {
-            key: {
-              type: "string",
-              description:
-                "The key of the memory value. Always use lowercase and underscores, no other characters.",
-            },
-            value: {
-              type: "string",
-              description: "Value can be anything represented as a string",
-            },
-          },
-          required: ["key", "value"],
-        },
-      },
-      async ({ key, value }: { [key: string]: any }) => {
-        setMemoryKv((memoryKv) => {
-          const newKv = { ...memoryKv };
-          newKv[key] = value;
-          return newKv;
-        });
-        return { ok: true };
-      }
-    );
-
+    // Handle realtime events
     client.on("realtime.event", (realtimeEvent: RealtimeEvent) => {
       setRealtimeEvents((realtimeEvents) => {
         const lastEvent = realtimeEvents[realtimeEvents.length - 1];
         if (lastEvent?.event.type === realtimeEvent.event.type) {
+          // Aggregate events
           lastEvent.count = (lastEvent.count || 0) + 1;
           return realtimeEvents.slice(0, -1).concat(lastEvent);
         } else {
@@ -251,62 +290,51 @@ export default function ConsolePage() {
     };
   }, []);
 
+  /**
+   * Render the application
+   */
   return (
-    <div data-component="ConsolePage" className="h-screen w-screen bg-gray-900">
-      <div className="relative h-full">
-        {/* Canvas Container */}
-        <div
-          className={`transition-all duration-500 ease-in-out ${
-            isConnected
-              ? "fixed inset-0 flex items-center justify-center"
-              : "h-full flex flex-col items-center justify-center"
-          }`}
-        >
-          <div
-            className={`flex ${
-              isConnected ? "w-full h-full" : "w-3/4 h-3/4"
-            } gap-4`}
-          >
-            <div className="flex-1 flex items-center justify-center">
-              <canvas
-                ref={clientCanvasRef}
-                className="w-full h-full rounded-lg shadow-lg transition-all duration-300"
-              />
-            </div>
-            <div className="flex-1 flex items-center justify-center">
-              <canvas
-                ref={serverCanvasRef}
-                className="w-full h-full rounded-lg shadow-lg transition-all duration-300"
-              />
+    <div data-component="ConsolePage">
+      <div className="content-top">
+        <div className="content-title">
+          <img src="/openai-logomark.svg" />
+          <span>realtime console</span>
+        </div>
+        <div className="content-api-key">
+          <Button
+            icon={Edit}
+            iconPosition="end"
+            buttonStyle="flush"
+            label={`api key: ${apiKey.slice(0, 3)}...`}
+            onClick={() => resetAPIKey()}
+          />
+        </div>
+      </div>
+      <div className="content-main">
+        <div className="content-logs">
+          <div className="content-block events">
+            <div className="visualization">
+              <div className="visualization-entry client">
+                <canvas ref={clientCanvasRef} />
+              </div>
+              <div className="visualization-entry server">
+                <canvas ref={serverCanvasRef} />
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Button Container */}
-        <div
-          className={`absolute ${
-            isConnected ? "bottom-8" : "bottom-16"
-          } left-1/2 transform -translate-x-1/2 transition-all duration-300`}
-        >
-          <button
-            onClick={isConnected ? disconnectConversation : connectConversation}
-            className={`
-              px-6 py-3 rounded-full font-semibold
-              transform transition-all duration-300
-              hover:scale-105 active:scale-95
-              flex items-center gap-2
-              ${
-                isConnected
-                  ? "bg-red-500 hover:bg-red-600 text-white"
-                  : "bg-blue-500 hover:bg-blue-600 text-white"
+          <div className="content-actions">
+            <div className="spacer" />
+            <div className="spacer" />
+            <Button
+              label={isConnected ? "disconnect" : "connect"}
+              iconPosition={isConnected ? "end" : "start"}
+              icon={isConnected ? X : Zap}
+              buttonStyle={isConnected ? "regular" : "action"}
+              onClick={
+                isConnected ? disconnectConversation : connectConversation
               }
-              shadow-lg hover:shadow-xl
-            `}
-          >
-            {!isConnected && <Zap className="w-5 h-5 animate-pulse" />}
-            {isConnected ? "Disconnect" : "Connect"}
-            {isConnected && <X className="w-5 h-5 ml-1" />}
-          </button>
+            />
+          </div>
         </div>
       </div>
     </div>
