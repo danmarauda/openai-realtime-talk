@@ -63,6 +63,7 @@ export default function ConsolePage() {
 
     client.updateSession({
       turn_detection: { type: "server_vad" },
+      voice: "shimmer",
     });
 
     await wavRecorder.record((data) => client.appendInputAudio(data.mono));
