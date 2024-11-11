@@ -108,4 +108,71 @@ export const WavRenderer = {
       ctx.fillRect(x, y, barWidth, height);
     }
   },
+
+  drawModernWave: (
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    data: Float32Array,
+    color: string,
+    pointCount: number = 100
+  ) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const points = normalizeArray(data, pointCount, true);
+    const centerY = canvas.height / 2;
+    const amplitude = canvas.height * 0.4;
+
+    // Create gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, `${color}22`);
+    gradient.addColorStop(0.5, `${color}44`);
+    gradient.addColorStop(1, `${color}22`);
+
+    // Draw top wave
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+
+    for (let i = 0; i < points.length; i++) {
+      const x = (canvas.width * i) / (points.length - 1);
+      const y = centerY - points[i] * amplitude;
+
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        const prevX = (canvas.width * (i - 1)) / (points.length - 1);
+        const prevY = centerY - points[i - 1] * amplitude;
+        const cpX = (x + prevX) / 2;
+        ctx.quadraticCurveTo(prevX, prevY, cpX, (y + prevY) / 2);
+      }
+    }
+
+    // Complete the path for bottom wave
+    for (let i = points.length - 1; i >= 0; i--) {
+      const x = (canvas.width * i) / (points.length - 1);
+      const y = centerY + points[i] * amplitude;
+
+      if (i === points.length - 1) {
+        ctx.lineTo(x, y);
+      } else {
+        const prevX = (canvas.width * (i + 1)) / (points.length - 1);
+        const prevY = centerY + points[i + 1] * amplitude;
+        const cpX = (x + prevX) / 2;
+        ctx.quadraticCurveTo(prevX, prevY, cpX, (y + prevY) / 2);
+      }
+    }
+
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // Draw center line with glow
+    ctx.beginPath();
+    ctx.moveTo(0, centerY);
+    ctx.lineTo(canvas.width, centerY);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  },
 };

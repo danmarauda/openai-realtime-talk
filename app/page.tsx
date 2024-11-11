@@ -120,45 +120,41 @@ export default function ConsolePage() {
       if (isLoaded) {
         if (clientCanvas) {
           if (!clientCanvas.width || !clientCanvas.height) {
-            clientCanvas.width = clientCanvas.offsetWidth;
-            clientCanvas.height = clientCanvas.offsetHeight;
+            clientCanvas.width =
+              clientCanvas.offsetWidth * window.devicePixelRatio;
+            clientCanvas.height =
+              clientCanvas.offsetHeight * window.devicePixelRatio;
           }
           clientCtx = clientCtx || clientCanvas.getContext("2d");
           if (clientCtx) {
-            clientCtx.clearRect(0, 0, clientCanvas.width, clientCanvas.height);
             const result = wavRecorder.recording
               ? wavRecorder.getFrequencies("voice")
               : { values: new Float32Array([0]) };
-            WavRenderer.drawBars(
+            WavRenderer.drawModernWave(
               clientCanvas,
               clientCtx,
               result.values,
-              "#0099ff",
-              10,
-              0,
-              8
+              "#3b82f6"
             );
           }
         }
         if (serverCanvas) {
           if (!serverCanvas.width || !serverCanvas.height) {
-            serverCanvas.width = serverCanvas.offsetWidth;
-            serverCanvas.height = serverCanvas.offsetHeight;
+            serverCanvas.width =
+              serverCanvas.offsetWidth * window.devicePixelRatio;
+            serverCanvas.height =
+              serverCanvas.offsetHeight * window.devicePixelRatio;
           }
           serverCtx = serverCtx || serverCanvas.getContext("2d");
           if (serverCtx) {
-            serverCtx.clearRect(0, 0, serverCanvas.width, serverCanvas.height);
             const result = wavStreamPlayer.analyser
               ? wavStreamPlayer.getFrequencies("voice")
               : { values: new Float32Array([0]) };
-            WavRenderer.drawBars(
+            WavRenderer.drawModernWave(
               serverCanvas,
               serverCtx,
               result.values,
-              "#009900",
-              10,
-              0,
-              8
+              "#10b981"
             );
           }
         }
@@ -255,39 +251,19 @@ export default function ConsolePage() {
     <div data-component="ConsolePage" className="h-screen w-screen bg-gray-900">
       <div className="relative h-full">
         {/* Canvas Container */}
-        <div
-          className={`transition-all duration-500 ease-in-out ${
-            isConnected
-              ? "fixed inset-0 flex items-center justify-center"
-              : "h-full flex flex-col items-center justify-center"
-          }`}
-        >
-          <div
-            className={`flex ${
-              isConnected ? "w-full h-full" : "w-3/4 h-3/4"
-            } gap-4`}
-          >
-            <div className="flex-1 flex items-center justify-center">
-              <canvas
-                ref={clientCanvasRef}
-                className="w-full h-full rounded-lg shadow-lg transition-all duration-300"
-              />
+        <div className="absolute inset-0 flex items-center justify-center p-8">
+          <div className="w-full max-w-5xl h-64 flex gap-8">
+            <div className="flex-1 relative overflow-hidden rounded-2xl bg-gray-800/20 backdrop-blur-lg">
+              <canvas ref={clientCanvasRef} className="w-full h-full" />
             </div>
-            <div className="flex-1 flex items-center justify-center">
-              <canvas
-                ref={serverCanvasRef}
-                className="w-full h-full rounded-lg shadow-lg transition-all duration-300"
-              />
+            <div className="flex-1 relative overflow-hidden rounded-2xl bg-gray-800/20 backdrop-blur-lg">
+              <canvas ref={serverCanvasRef} className="w-full h-full" />
             </div>
           </div>
         </div>
 
         {/* Button Container */}
-        <div
-          className={`absolute ${
-            isConnected ? "bottom-8" : "bottom-16"
-          } left-1/2 transform -translate-x-1/2 transition-all duration-300`}
-        >
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-10">
           <button
             onClick={isConnected ? disconnectConversation : connectConversation}
             className={`
