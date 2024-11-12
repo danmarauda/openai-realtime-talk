@@ -1,8 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ChatGPT Live Talk
 
-## Getting Started
+A Next.js project for real-time chat interactions using OpenAI's GPT models.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js installed on your system
+- OpenAI API key
+- npm, yarn, pnpm, or bun package manager
+
+## Installation
+
+1. Clone the repository
+2. Install dependencies:
+
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+# or
+bun install
+```
+
+## Configuration
+
+Two ways to configure the application:
+
+### 1. Direct OpenAI API Connection
+
+Create a `.env` file from `.env.example` with:
+
+```env
+NEXT_PUBLIC_OPENAI_API_KEY="your-api-key"
+NEXT_PUBLIC_WITHOUT_RELAY=true
+```
+
+### 2. Using Relay Server (Recommended)
+
+Create a `.env` file from `.env.example` with:
+
+```env
+NEXT_PUBLIC_LOCAL_RELAY_SERVER_URL="your-relay-server-url"
+OPENAI_API_KEY="your-api-key"
+```
+
+> Note: The relay server code is available in the `/relay-server` directory
+
+## Development
+
+Start the development server:
 
 ```bash
 npm run dev
@@ -14,6 +61,4 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-Rename the .env.example to .env and give your relay server url
+Access the application at [http://localhost:3000](http://localhost:3000)

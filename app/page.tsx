@@ -24,10 +24,18 @@ export default function ConsolePage() {
     new WavStreamPlayer({ sampleRate: 24000 })
   );
   const clientRef = useRef<RealtimeClient>(
-    new RealtimeClient({
-      url:
-        process.env.REACT_APP_LOCAL_RELAY_SERVER_URL || "http://localhost:8081",
-    })
+    new RealtimeClient(
+      process.env.NEXT_PUBLIC_WITHOUT_RELAY
+        ? {
+            apiKey: process.env.NEXT_PUBLIC_OPENAI_API_KEY || "",
+            dangerouslyAllowAPIKeyInBrowser: true,
+          }
+        : {
+            url:
+              process.env.NEXT_PUBLIC_LOCAL_RELAY_SERVER_URL ||
+              "http://localhost:8081",
+          }
+    )
   );
 
   const clientCanvasRef = useRef<HTMLCanvasElement>(null);
