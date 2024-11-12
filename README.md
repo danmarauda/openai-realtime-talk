@@ -62,3 +62,7 @@ bun dev
 ```
 
 Access the application at [http://localhost:3000](http://localhost:3000)
+
+## Made from
+
+- [OpenAI Realtime Console](https://github.com/openai/openai-realtime-console) - Example of real-time streaming interactions with OpenAI's API
